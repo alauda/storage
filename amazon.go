@@ -18,17 +18,17 @@ package storage
 
 import (
 	"bytes"
-	"io/ioutil"
-	pathutil "path"
-	"strings"
-	"net/http"
 	"crypto/tls"
-	"os"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"io/ioutil"
+	"net/http"
+	"os"
+	pathutil "path"
+	"strings"
 )
 
 // AmazonS3Backend is a storage backend for Amazon S3
@@ -100,12 +100,12 @@ func NewAmazonS3BackendWithCredentials(bucket string, prefix string, region stri
 func (b AmazonS3Backend) ListObjects(prefix string) ([]Object, error) {
 	var objects []Object
 	prefix = pathutil.Join(b.Prefix, prefix)
-	s3Input := &s3.ListObjectsInput{
+	s3Input := &s3.ListObjectsV2Input{
 		Bucket: aws.String(b.Bucket),
 		Prefix: aws.String(prefix),
 	}
 	for {
-		s3Result, err := b.Client.ListObjects(s3Input)
+		s3Result, err := b.Client.ListObjectsV2(s3Input)
 		if err != nil {
 			return objects, err
 		}
@@ -124,7 +124,8 @@ func (b AmazonS3Backend) ListObjects(prefix string) ([]Object, error) {
 		if !*s3Result.IsTruncated {
 			break
 		}
-		s3Input.Marker = s3Result.Contents[len(s3Result.Contents)-1].Key
+		nextToken := s3Result.NextContinuationToken
+		s3Input = s3Input.SetContinuationToken(*nextToken)
 	}
 	return objects, nil
 }
